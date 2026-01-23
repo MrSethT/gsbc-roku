@@ -1,0 +1,8 @@
+out/
+source/rokuapp1.3.zip
+real readme.txt
+ssh pw.txt
+.vscode/configurationCache.log
+.vscode/dryrun.log
+.vscode/targets.log
+/gimp

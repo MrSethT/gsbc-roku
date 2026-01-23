@@ -1,27 +1,47 @@
-'*************************************************************
-'** Hello World example 
-'** Copyright (c) 2015 Roku, Inc.  All rights reserved.
-'** Use of the Roku Platform is subject to the Roku SDK License Agreement:
-'** https://docs.roku.com/doc/developersdk/en-us
-'*************************************************************
+' ********** Copyright 2020 Roku Corp.  All Rights Reserved. **********
 
-sub Main()
-    print "in showChannelSGScreen"
-    'Indicate this is a Roku SceneGraph application'
+' Channel entry point
+sub Main(args as object)
+    ShowChannelRSGScreen(args)
+end sub
+
+sub ShowChannelRSGScreen(args as object)
+    ' The roSGScreen object is a SceneGraph canvas that displays the contents of a Scene node instance
     screen = CreateObject("roSGScreen")
+    ' message port is the place where events are sent
     m.port = CreateObject("roMessagePort")
-    screen.setMessagePort(m.port)
+    ' sets the message port which will be used for events from the screen
+    screen.SetMessagePort(m.port)
+    ' every screen object must have a Scene node, or a node that derives from the Scene node
+    scene = screen.CreateScene("MainScene")
 
-    'Create a scene and load /components/helloworld.xml'
-    scene = screen.CreateScene("HelloWorld")
-    screen.show()
+    scene.signalBeacon("AppLaunchComplete")
 
+    scene.signalBeacon("AppDialogInitiate")
+    scene.signalBeacon("AppDialogComplete")
+    screen.Show() ' Init method in MainScene.brs is invoked
+    scene.launchArgs = args
+    inputObject = createobject("roInput")
+    inputObject.setmessageport(m.port)
+
+    ' event loop
     while(true)
+        ' waiting for events from screen
         msg = wait(0, m.port)
         msgType = type(msg)
         if msgType = "roSGScreenEvent"
-            if msg.isScreenClosed() then return
+            if msg.IsScreenClosed() then return
+        else if msgType = "roInputEvent"
+            inputData = msg.getInfo()
+            ? "input"
+            ' pass the deeplink to UI
+            if inputData.DoesExist("mediaType") and inputData.DoesExist("contentId")
+                deeplink = {
+                    contentId: inputData.contentID
+                    mediaType: inputData.mediaType
+                }
+                scene.inputArgs = deeplink
+            end if
         end if
     end while
 end sub
-
