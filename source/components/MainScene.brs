@@ -18,23 +18,7 @@ sub Init()
 end sub
 
 sub SetupAnalytics()
-    ' google analytics
-    'm.global.addField("RSG_analytics", "node", false)
     try
-        ' m.global.RSG_analytics = CreateObject("roSGNode", "Roku_Analytics:AnalyticsNode")
-        ' 'disables all debug prints, enable it in order to see which events are fired
-        ' m.global.RSG_analytics.debug = false
-
-        ' m.global.RSG_analytics.init = {
-        '     Google: {
-        '         trackingID: "UA-3397061-1"
-        '         ' For convenience, this allows developers to define a set of parameters and values that will be sent with every omniture call
-        '         defaultParams: {
-        '              an : "RokuAnalyticsClient"
-        '         }
-        '     }
-        ' }
-
         ' google G4 analytics
         m.global.AddField("analytics", "node", false)
         m.global.analytics = CreateObject("roSGNode", "GoogleAnalytics")
@@ -45,13 +29,12 @@ sub SetupAnalytics()
             customArgs: {
             }
             'isFirstOpen: myIsFirstOpen ' THIS VALUE IS OPTIONAL, THE DEFAULT BEHAVIOR IS TO USE THE STORAGE TO KNOW IF IT's THE FIRST OPEN
-            userId: "1"
             userProperties: {
             }
         })
         m.global.analytics.callFunc("start")
 
-        if false then
+        if true then
             m.global.analytics.callFunc("enableDebug")
             m.global.analytics.callFunc("logEvent", "Thump", {
                 "event_category": "Heartbeat",

@@ -85,8 +85,8 @@ sub timer_fire(event as object)
     ?"timer_fire"
 
     value = "h" + Right("0" + CreateObject("roDateTime").getHours().toStr(), 2)
-    'G4
     
+    'G4
     if m.global.analytics  <> invalid
          m.global.analytics.callFunc("logEvent", "Thump", {
                 "event_category": "Heartbeat",
@@ -96,18 +96,6 @@ sub timer_fire(event as object)
             })
     end if
     
-    ' if m.global.RSG_analytics  <> invalid
-    
-    '     'google analytics
-    '     m.global.RSG_analytics.trackEvent = {
-    '         Google: {
-    '             t: "event"
-    '             ec: "Heartbeat"
-    '             ea: "Thump"
-    '             el: "Roku"
-    '         }
-    '     }
-    ' end if
 end sub
 
 sub OnVideoVisibleChange() ' invoked when video node visibility is changed
