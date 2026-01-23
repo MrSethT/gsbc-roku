@@ -1,0 +1,8 @@
+params:   
+    rasp_version: 1
+    default_keypress_wait: 2
+    channels:   
+        GSBC Video: dev
+steps:  
+    - launch: GSBC Video
+    - pause: 30

@@ -1,0 +1,12 @@
+params:   
+    rasp_version: 1
+    default_keypress_wait: 2
+    channels:   
+        GSBC Video: dev
+steps:  
+    - launch:   
+          channel_name: GSBC Video
+          media_type: live
+          content_id: -1
+          query: contentID=-1&mediatype=live
+    - wait_for_player_state: play
