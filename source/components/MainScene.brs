@@ -34,7 +34,7 @@ sub SetupAnalytics()
         })
         m.global.analytics.callFunc("start")
 
-        if true then
+        if false then
             m.global.analytics.callFunc("enableDebug")
             m.global.analytics.callFunc("logEvent", "Thump", {
                 "event_category": "Heartbeat",
