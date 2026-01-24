@@ -3,8 +3,8 @@
 # Channel Details
 title=GSBC Video
 major_version=1
-minor_version=5
-build_version=4
+minor_version=6
+build_version=5
 
 # Channel Assets
 mm_icon_focus_hd=pkg:/images/icon_focus_hd.jpg
