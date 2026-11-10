@@ -12,9 +12,44 @@ sub Init()
     RunContentTask() ' retrieving content
 
     SetupAnalytics()
+end sub
 
+' Tells Roku the channel is usable (used for certification launch timing). Only the first call counts.
+sub SignalLaunchComplete()
+    if m.launchBeaconSent = true
+        return
+    end if
+    m.launchBeaconSent = true
+    m.waitForPlaybackBeacon = false
     m.top.SignalBeacon("AppLaunchComplete")
+end sub
 
+' Shows a single-button dialog; onSelected is the name of the sub to run when the button is pressed
+sub ShowMessageDialog(title as string, message as string, buttonText as string, onSelected as string)
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = title
+    dialog.message = message
+    dialog.buttons = [buttonText]
+    dialog.ObserveField("buttonSelected", onSelected)
+    dialog.ObserveField("wasClosed", "OnMessageDialogClosed")
+    m.top.dialog = dialog
+end sub
+
+sub CloseMessageDialog()
+    if m.top.dialog <> invalid
+        m.top.dialog.close = true
+    end if
+end sub
+
+sub OnMessageDialogClosed() ' also runs when the dialog is dismissed with "back"
+    if m.launchDialogOpen = true
+        m.launchDialogOpen = false
+        m.top.SignalBeacon("AppDialogComplete")
+    end if
+    screen = GetCurrentScreen()
+    if screen <> invalid
+        screen.SetFocus(true)
+    end if
 end sub
 
 sub SetupAnalytics()

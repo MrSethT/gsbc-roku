@@ -16,11 +16,3 @@ sub OnGridScreenItemSelected(event as Object)
     rowContent = grid.content.GetChild(m.selectedIndex[0])
     ShowDetailsScreen(rowContent, m.selectedIndex[1])
 end sub
-
-sub StartPlayback(rowContent as Object, selectedItem = 0 as Integer, isSeries = false as Boolean)
-    m.rowContent = rowContent
-    m.selectedItem = selectedItem
-    m.isSeries = isSeries
-
-
-end sub

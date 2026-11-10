@@ -5,6 +5,7 @@ ssh pw.txt
 .vscode/configurationCache.log
 .vscode/dryrun.log
 .vscode/targets.log
+.vscode/launch.json
 /gimp
 secretREADME.md
 source/gsbc-app.v1.5.zip

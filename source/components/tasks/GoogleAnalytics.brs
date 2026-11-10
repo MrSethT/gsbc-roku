@@ -105,9 +105,19 @@ function start()
     end if
 
     logEvent("page_view", {})
-
-    m.timer.control = "start"
+    ' the engagement timer is started and stopped by setEngagementActive (driven by video playback)
 end function
+
+' Starts or stops the periodic user_engagement / app_time events
+sub setEngagementActive(active as boolean)
+    if active
+        if m.timer.control <> "start"
+            m.timer.control = "start"
+        end if
+    else
+        m.timer.control = "stop"
+    end if
+end sub
 
 function getGaSessionId() as integer
     return CreateObject("roDateTime").AsSeconds()
@@ -271,9 +281,13 @@ function sendHttpRequest()
   requestSent = request.AsyncPostFromString("")
 
   if (requestSent)
-    msg = wait(0, port)
+    msg = wait(10000, port)
 
-    if (type(msg) = "roUrlEvent")
+    if msg = invalid
+      ' timed out: give up so this task can finish instead of waiting forever
+      request.AsyncCancel()
+      ? "ANALYTICS: ERROR - request timed out"
+    else if (type(msg) = "roUrlEvent")
       statusCode = msg.GetResponseCode()
 
       if statusCode < 200 or statusCode > 299

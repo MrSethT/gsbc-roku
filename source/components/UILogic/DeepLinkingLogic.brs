@@ -1,13 +1,18 @@
 function GetSupportedMediaTypes() as object ' returns AA with supported media types
     return {
         "live": "live"
+        "shortFormVideo": "shortFormVideo" ' prerecorded sermons, deep linked by MP3_uid
     }
 end function
 
 sub OnInputDeepLinking(event as object) ' invoked in case of "roInputEvent"
     args = event.getData()
     if args <> invalid and ValidateDeepLink(args) ' validate deep link arguments
-        DeepLink(m.GridScreen.content, args.mediaType, args.contentId) ' Perform deep linking
+        if m.GridScreen.content = invalid
+            m.top.launchArgs = args ' still loading: OnMainContentLoaded performs the deep link
+        else
+            DeepLink(m.GridScreen.content, args.mediaType, args.contentId) ' Perform deep linking
+        end if
     end if
 end sub
 
@@ -19,60 +24,37 @@ function ValidateDeepLink(args as object) as boolean
     return mediaType <> invalid and contentId <> invalid and types[mediaType] <> invalid
 end function
 
-' Perform deep linking
-sub DeepLink(content as object, mediaType as string, contentId as string)
-    playableItem = FindNodeById(content, contentId) ' find content for deep linking by contentId
+' Perform deep linking; returns true if playback was started
+function DeepLink(content as object, mediaType as string, contentId as string) as boolean
     types = GetSupportedMediaTypes()
+    if LCase(mediaType) = "shortformvideo" and contentId = "-1"
+        ' "-1" means the latest sermon (the feed is newest first)
+        playableItem = FindFirstByMediaType(content, types[mediaType])
+    else
+        playableItem = FindNodeById(content, contentId) ' find content for deep linking by contentId
+    end if
     ' check if chosen item has appropriate mediaType
-    if playableItem <> invalid and playableItem.mediaType = types[mediaType]
-        'only doing live for now
-        ClearScreenStack() ' remove all screen from screen stack except GridScreen
-        ' looking for appropriate handler for provided mediaType
-        if mediaType = "live"
-            HandleLiveMediaType(playableItem)
-        end if
+    if playableItem = invalid or playableItem.mediaType <> types[mediaType]
+        return false
     end if
-end sub
 
-' Handler for "live" type
-sub HandleLiveMediaType(content as Object)
-    ShowVideoScreen(content, 0)
-end sub
+    ClearScreenStack() ' remove all screen from screen stack except GridScreen
+    ' the video player runs in playlist mode, so play just this item as a one-item playlist
+    playlist = CreateObject("roSGNode", "ContentNode")
+    playlist.live = playableItem.live ' lets ShowVideoScreen recognize the livestream
+    playlist.AppendChild(playableItem.Clone(false))
+    ShowVideoScreen(playlist, 0)
+    return true
+end function
 
-sub PrepareDetailsScreen(content as object)
-    ' create DetailsScreen to be shown when user navigate from Video player
-    ' it will contain info about played content
-    m.deepLinkDetailsScreen = CreateObject("roSGNode", "DetailsScreen")
-    m.deepLinkDetailsScreen.content = content
-    m.deepLinkDetailsScreen.ObserveField("visible", "OnDeepLinkDetailsScreenVisibilityChanged")
-    m.deepLinkDetailsScreen.ObserveField("buttonSelected", "OnDeepLinkDetailsScreenButtonSelected")
-    AddScreen(m.deepLinkDetailsScreen) ' adds DetailsScreen to screen stack but don't show it
-end sub
-
-sub OnDeepLinkDetailsScreenVisibilityChanged(event as object) ' invoked when DetailsScreen or EpisodesScreen "visible" field is changed
-    visible = event.GetData()
-    screen = event.GetRoSGNode()
-    if visible = false and IsScreenInScreenStack(screen) = false
-        content = screen.content
-        if content <> invalid
-            ' jump to appropriate tile on GridScreen
-            m.GridScreen.jumpToRowItem = [content.homeRowIndex, content.homeItemIndex]
-            ' Invalidate deepLinkDetailsScreen if user press "Back" button on DetailsScreen
-            if m.deepLinkDetailsScreen <> invalid
-                m.deepLinkDetailsScreen = invalid
+' returns the first item (in grid order) with the given mediaType, or invalid
+function FindFirstByMediaType(content as object, mediaType as string) as object
+    for each row in content.GetChildren(-1, 0)
+        for each item in row.GetChildren(-1, 0)
+            if item.mediaType = mediaType
+                return item
             end if
-        end if
-    end if
-end sub
-
-sub OnDeepLinkDetailsScreenButtonSelected(event as object) ' invoked when button is  pressed on DetailsScreen
-    buttonIndex = event.getData() ' index of selected button
-    details = event.GetRoSGNode()
-    button = details.buttons.getChild(buttonIndex)
-    content = m.deepLinkDetailsScreen.content.clone(true)
-    ' Start playback from the beginning if user select play button
-    if button.id = "play"
-        content.bookmarkPosition = 0
-    end if
-    StartPlayback(content) ' show last played video
-end sub
+        end for
+    end for
+    return invalid
+end function

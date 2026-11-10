@@ -3,8 +3,11 @@
 # Channel Details
 title=GSBC Video
 major_version=1
-minor_version=6
-build_version=5
+minor_version=7
+build_version=1
+
+# SceneGraph version (requires minimum firmware 15.1, set in the Developer Dashboard)
+rsg_version=1.3
 
 # Channel Assets
 mm_icon_focus_hd=pkg:/images/icon_focus_hd.jpg

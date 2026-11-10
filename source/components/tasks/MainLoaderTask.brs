@@ -8,18 +8,14 @@ sub Init()
 end sub
 
 sub GetContent()
-    ' request the content feed from the API
-    xfer = CreateObject("roURLTransfer")
-    xfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
-    xfer.RetainBodyOnError(true)
-    xfer.AddHeader("contentType", "application/json; charset=utf-8")
-    xfer.SetURL("https://www.ganttstreetbaptist.org/WebMethods/Media.asmx/GetSermonVideoListJSON?thumbnailWidth=305&thumbnailHeight=172")
-    rsp = xfer.GetToString()
-    rootChildren = []
-    rows = {}
-
     ' parse the feed and build a tree of ContentNodes to populate the GridView
-    json = ParseJson(rsp)
+    json = FetchFeed()
+    if json = invalid
+        m.top.loadFailed = true ' observer (see OnMainContentFailed) tells the viewer
+        return
+    end if
+
+    rootChildren = []
 
     'live
     row = {}
@@ -29,28 +25,79 @@ sub GetContent()
     row.children.push(live)
     rootChildren.Push(row)
 
-    if json <> invalid
-        row = {}
-        row.title = "Recent Sermons"
-        row.children = []
-        for each item in json ' parse items and push them to row
-            if item.Live = false 
-                itemData = GetItemData(item)
-                row.children.Push(itemData)
-            end if
-        end for
-        rootChildren.Push(row)
+    row = {}
+    row.title = "Recent Sermons"
+    row.children = []
+    for each item in json ' parse items and push them to row
+        if IsValidVideo(item) and item.Live = false
+            itemData = GetItemData(item)
+            row.children.Push(itemData)
+        end if
+    end for
+    rootChildren.Push(row)
 
-        ' set up a root ContentNode to represent rowList on the GridScreen
-        contentNode = CreateObject("roSGNode", "ContentNode")
-        contentNode.Update({
-            children: rootChildren
-        }, true)
-        ' populate content field with root content node.
-        ' Observer(see OnMainContentLoaded in MainScene.brs) is invoked at that moment
-        m.top.content = contentNode
-    end if
+    ' set up a root ContentNode to represent rowList on the GridScreen
+    contentNode = CreateObject("roSGNode", "ContentNode")
+    contentNode.Update({
+        children: rootChildren
+    }, true)
+    ' populate content field with root content node.
+    ' Observer(see OnMainContentLoaded in MainScene.brs) is invoked at that moment
+    m.top.content = contentNode
 end sub
+
+' returns the parsed feed array, or invalid if it can't be retrieved
+function FetchFeed() as object
+    maxAttempts = 3
+    for attempt = 1 to maxAttempts
+        body = RequestFeed()
+        if body <> ""
+            json = ParseJson(body)
+            if GetInterface(json, "ifArray") <> invalid
+                return json
+            end if
+        end if
+        if attempt < maxAttempts
+            Sleep(2000)
+        end if
+    end for
+    return invalid
+end function
+
+' returns the response body, or "" on a failed or timed out request
+function RequestFeed() as string
+    timeoutMs = 15000
+    port = CreateObject("roMessagePort")
+    xfer = CreateObject("roURLTransfer")
+    xfer.SetMessagePort(port)
+    xfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
+    xfer.RetainBodyOnError(true)
+    xfer.AddHeader("Accept", "application/json")
+    xfer.SetURL("https://www.ganttstreetbaptist.org/WebMethods/Media.asmx/GetSermonVideoListJSON?thumbnailWidth=305&thumbnailHeight=172")
+
+    if xfer.AsyncGetToString()
+        msg = Wait(timeoutMs, port)
+        if type(msg) = "roUrlEvent"
+            if msg.GetResponseCode() = 200
+                return msg.GetString()
+            end if
+        else
+            xfer.AsyncCancel()
+        end if
+    end if
+    return ""
+end function
+
+' a record needs these fields to be listed and played; anything else is skipped
+function IsValidVideo(video as dynamic) as boolean
+    if GetInterface(video, "ifAssociativeArray") = invalid
+        return false
+    end if
+    if GetInterface(video.Live, "ifBoolean") = invalid
+        return false
+    end if
+    return GetInterface(video.CloudId, "ifString") <> invalid and video.CloudId <> ""
+end function
 
 function GetItemData(video as object) as object
     item = {}
@@ -59,14 +106,16 @@ function GetItemData(video as object) as object
     item.description =  video.Description
     item.hdPosterURL = video.MuxThumbnailUrl
     item.title = video.Title
-    if(video.Date <> invalid)
+    if GetInterface(video.Date, "ifString") <> invalid
         AMPM = " PM"
-        if (video.AM)
+        if GetInterface(video.AM, "ifBoolean") <> invalid and video.AM
             AMPM = " AM"
         end if
         item.releaseDate = ParseDate(video.Date).AsDateString("long-date") + AMPM
     end if
-    item.id = video.MP3_uid
+    if GetInterface(video.MP3_uid, "ifToStr") <> invalid
+        item.id = video.MP3_uid.ToStr() ' ContentNode ids are strings
+    end if
     'if video.content <> invalid
     ' populate length of content to be displayed on the GridScreen
     item.length = invalid
@@ -74,7 +123,7 @@ function GetItemData(video as object) as object
     ' populate meta-data for playback
     item.url = "https://stream.mux.com/" + video.CloudId + ".m3u8"
     item.streamFormat = "hls"
-    item.mediaType = "shortFormVideos"
+    item.mediaType = "shortFormVideo" ' Roku's deep-link media type for these videos
     'end if
     return item
 end function
@@ -84,7 +133,7 @@ function GetLiveData(json) as object
     found = false
     
     for each item in json ' parse items and push them to row
-        if item.Live = true and not found 
+        if IsValidVideo(item) and item.Live = true and not found
             itemData = GetItemData(item)
         end if
     end for
@@ -95,8 +144,8 @@ function GetLiveData(json) as object
     itemData.title = "GSBC Livestream"
     itemData.live = true
     'item.releaseDate = video.releaseDate
-    itemData.id = -1
-    itemData.releaseDate = CreateObject("roDateTime")
+    itemData.id = "-1" ' matched by deep links (contentId=-1); ContentNode ids are strings
+    itemData.releaseDate = "" ' string field; the live tile shows no date
     ' populate length of content to be displayed on the GridScreen
     itemData.length = invalid
     ' populate meta-data for playback
