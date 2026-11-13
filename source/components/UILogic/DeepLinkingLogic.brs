@@ -1,7 +1,11 @@
-function GetSupportedMediaTypes() as object ' returns AA with supported media types
+' returns AA mapping each supported deep-link mediaType to the item mediaType it plays
+function GetSupportedMediaTypes() as object
     return {
         "live": "live"
-        "shortFormVideo": "shortFormVideo" ' prerecorded sermons, deep linked by MP3_uid
+        ' prerecorded sermons, deep linked by MP3_uid. Roku Search sends tvSpecial, because the
+        ' search feed lists sermons as that type (shortForm is limited to 15 minutes)
+        "shortFormVideo": "shortFormVideo"
+        "tvSpecial": "shortFormVideo"
     }
 end function
 
@@ -26,15 +30,18 @@ end function
 
 ' Perform deep linking; returns true if playback was started
 function DeepLink(content as object, mediaType as string, contentId as string) as boolean
-    types = GetSupportedMediaTypes()
-    if LCase(mediaType) = "shortformvideo" and contentId = "-1"
+    itemType = GetSupportedMediaTypes()[mediaType]
+    if itemType = invalid
+        return false
+    end if
+    if itemType = "shortFormVideo" and contentId = "-1"
         ' "-1" means the latest sermon (the feed is newest first)
-        playableItem = FindFirstByMediaType(content, types[mediaType])
+        playableItem = FindFirstByMediaType(content, itemType)
     else
         playableItem = FindNodeById(content, contentId) ' find content for deep linking by contentId
     end if
     ' check if chosen item has appropriate mediaType
-    if playableItem = invalid or playableItem.mediaType <> types[mediaType]
+    if playableItem = invalid or playableItem.mediaType <> itemType
         return false
     end if
 
