@@ -53,6 +53,7 @@
                 />
                 
                 <LayoutGroup
+                    id="infoGroup"
                     itemSpacings="[40]"
                     translation="[0, 108]">
                     <Label

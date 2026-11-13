@@ -30,9 +30,11 @@ sub OnMainContentLoaded() ' invoked when content is ready to be used
     m.GridScreen.SetFocus(true) ' set focus to GridScreen
     m.loadingIndicator.visible = false ' hide loading indicator because content was retrieved
     m.GridScreen.content = m.contentTask.content ' populate GridScreen with content
+    m.resumeRowIds = "" ' fresh content has no "Continue Watching" row yet
+    RefreshResumeRow()
 
     args = m.top.launchArgs
-    if args <> invalid and ValidateDeepLink(args) and DeepLink(m.contentTask.content, args.mediaType, args.contentId)
+    if args <> invalid and ValidateDeepLink(args) and DeepLink(m.GridScreen.content, args.mediaType, args.contentId)
         ' a deep-link launch is complete once playback starts (see OnVideoPlayerStateChange)
         m.waitForPlaybackBeacon = true
     else

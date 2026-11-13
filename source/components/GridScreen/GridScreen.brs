@@ -22,8 +22,17 @@ end sub
 
 sub OnItemFocused() ' invoked when another item is focused
     focusedIndex = m.rowList.rowItemFocused ' get position of focused item
+    if m.rowList.content = invalid or focusedIndex = invalid or focusedIndex.Count() < 2
+        return
+    end if
     row = m.rowList.content.GetChild(focusedIndex[0]) ' get all items of row
+    if row = invalid ' rows can be added or removed while the grid is showing
+        return
+    end if
     item = row.GetChild(focusedIndex[1]) ' get focused item
+    if item = invalid
+        return
+    end if
     ' update description label with description of focused item
     m.descriptionLabel.text = item.description + Chr(10)
     if(item.releaseDate<> invalid)

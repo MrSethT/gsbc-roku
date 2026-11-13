@@ -2,7 +2,8 @@
 
 ' Note that we need to import this file in MainScene.xml using relative path.
 
-sub ShowVideoScreen(rowContent as object, selectedItem as integer)
+' fromBeginning = true plays the selected item from 0:00, ignoring its start time and bookmark
+sub ShowVideoScreen(rowContent as object, selectedItem as integer, fromBeginning = false as boolean)
     StopPlaybackTracking() ' a deep link can replace a video that is still playing
     m.videoPlayer = CreateObject("roSGNode", "Video") ' create new instance of video node for each playback
 
@@ -54,6 +55,23 @@ sub ShowVideoScreen(rowContent as object, selectedItem as integer)
     end if
 
     m.isLivePlayback = isLive
+    m.lastBookmarkPosition = -1
+
+    ' a saved bookmark overrides the sermon's own start time (playStart)
+    if not isLive
+        isSelectedItem = true ' the selected item is always first in the playlist
+        for each item in m.videoPlayer.content.GetChildren(-1, 0)
+            if isSelectedItem and fromBeginning
+                item.playStart = 0
+            else
+                bookmark = ReadBookmark(item.id)
+                if bookmark > 0
+                    item.playStart = bookmark
+                end if
+            end if
+            isSelectedItem = false
+        end for
+    end if
 
     if(isLive)
         m.timer = CreateObject("roSGNode", "Timer")
@@ -70,7 +88,51 @@ sub ShowVideoScreen(rowContent as object, selectedItem as integer)
     'm.videoPlayer.PlayStart(rowContent.children[selectedItem].streamStartTimeOffset)
     m.videoPlayer.ObserveField("state", "OnVideoPlayerStateChange")
     m.videoPlayer.ObserveField("visible", "OnVideoVisibleChange")
+    m.videoPlayer.ObserveField("position", "OnVideoPositionChange")
 end sub
+
+' ---- Bookmarks: the playback position of each sermon, kept in the device registry ----
+
+sub OnVideoPositionChange() ' invoked about once a second during playback
+    if m.isLivePlayback = true
+        return
+    end if
+    ' save every 15 seconds so the position survives the viewer pressing Home
+    if Abs(Int(m.videoPlayer.position) - m.lastBookmarkPosition) >= 15
+        SaveBookmark()
+    end if
+end sub
+
+' Saves the current position of the playing sermon, or clears it once the sermon is nearly over
+sub SaveBookmark()
+    if m.videoPlayer = invalid or m.isLivePlayback = true or m.videoPlayer.content = invalid
+        return
+    end if
+    item = m.videoPlayer.content.GetChild(m.videoPlayer.contentIndex)
+    position = Int(m.videoPlayer.position)
+    if item = invalid or item.id = "" or position <= 0
+        return
+    end if
+
+    duration = Int(m.videoPlayer.duration)
+    section = CreateObject("roRegistrySection", "bookmarks")
+    if duration > 0 and position >= duration - 30
+        section.Delete(item.id) ' finished: the next deep link starts it over
+    else
+        section.Write(item.id, position.ToStr())
+    end if
+    section.Flush()
+    m.lastBookmarkPosition = position
+end sub
+
+' returns the saved position in seconds, or 0 if there is none
+function ReadBookmark(contentId as string) as integer
+    section = CreateObject("roRegistrySection", "bookmarks")
+    if contentId <> "" and section.Exists(contentId)
+        return section.Read(contentId).ToInt()
+    end if
+    return 0
+end function
 
 sub OnVideoPlayerStateChange() ' invoked when video state is changed
     state = m.videoPlayer.state
@@ -166,6 +228,8 @@ sub OnVideoVisibleChange() ' invoked when video node visibility is changed
     if m.videoPlayer.visible = false and m.top.visible = true
         ' the index of the video in the video playlist that is currently playing.
         currentIndex = m.videoPlayer.contentIndex
+        SaveBookmark() ' remember where the viewer left off
+        RefreshResumeRow() ' add, keep or drop this sermon in "Continue Watching"
         m.videoPlayer.control = "stop" ' stop playback
         'clear video player content, for proper start of next video player
         m.videoPlayer.content = invalid

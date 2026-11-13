@@ -15,13 +15,30 @@ function Init()
     m.titleLabel = m.top.FindNode("titleLabel")
     m.releaseLabel = m.top.FindNode("releaseLabel")
 
-    ' create buttons
+    SetButtons(["Play"]) ' the list is finalized per item in SetDetailsContent
+end function
+
+' Sets the buttons list. Index 0 is always "Play"; when present, index 1 is "Play from Beginning"
+' and index 2 is "Remove from Continue Watching" (handled by OnButtonSelected in DetailsScreenLogic.brs).
+sub SetButtons(titles as object)
+    signature = titles.Join("|")
+    if signature = m.buttonSignature
+        return ' unchanged: keep the list (and its focus) as it is
+    end if
+    m.buttonSignature = signature
     result = []
-    for each button in ["Play"] ' buttons list contains only "Play" button for now
+    for each button in titles
         result.Push({ title: button })
     end for
-    m.buttons.content = ContentListToSimpleNode(result) ' set list of buttons for DetailsScreen
-end function
+    m.buttons.content = ContentListToSimpleNode(result)
+
+    ' keep the title and description clear of the buttons (each is 48 tall with 10 between)
+    infoY = titles.Count() * 58 + 12
+    if infoY < 108
+        infoY = 108
+    end if
+    m.top.FindNode("infoGroup").translation = [0, infoY]
+end sub
 
 sub OnVisibleChange() ' invoked when DetailsScreen visibility is changed
     ' set focus for buttons list when DetailsScreen become visible
@@ -33,6 +50,17 @@ end sub
 
 ' Populate content details information
 sub SetDetailsContent(content as object)
+    if content = invalid
+        return
+    end if
+    ' the livestream has no beginning to go back to
+    if content.live = true
+        SetButtons(["Play"])
+    else if m.top.content <> invalid and m.top.content.id = "resumeRow" ' opened from "Continue Watching"
+        SetButtons(["Play", "Play from Beginning", "Remove from Continue Watching"])
+    else
+        SetButtons(["Play", "Play from Beginning"])
+    end if
     m.description.text = content.description ' set description of content
     m.poster.uri = content.hdPosterUrl ' set url of content poster
     if(content.length > 0)

@@ -43,7 +43,7 @@ function DeepLink(content as object, mediaType as string, contentId as string) a
     playlist = CreateObject("roSGNode", "ContentNode")
     playlist.live = playableItem.live ' lets ShowVideoScreen recognize the livestream
     playlist.AppendChild(playableItem.Clone(false))
-    ShowVideoScreen(playlist, 0)
+    ShowVideoScreen(playlist, 0) ' resumes from the bookmark if there is one, with no prompt
     return true
 end function
 
